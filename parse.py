@@ -4,6 +4,7 @@ import math
 import binascii
 from schema import PidTagSchema
 import json
+import sys
 # this is the table of tags and codes
 
 def hexify(PropID):
@@ -16,10 +17,14 @@ def lookup(ulPropID):
 	else:
 		return hex(ulPropID)
 
-json_out = open('test.json', 'w')
+if len(sys.argv) < 2:
+    print "usage: %s /path/to/udetails.oab"
+    sys.exit(1)
+
+udetails = sys.argv[1]
 
 # When reading a binary file, always add a 'b' to the file open mode
-with open('udetails.oab', 'rb') as f:
+with open(udetails, 'rb') as f:
 	(ulVersion, ulSerial, ulTotRecs) = unpack('<III', f.read(4 * 3))
 	assert ulVersion == 32, 'This only supports OAB Version 4 Details File'
 	print "Total Record Count: ", ulTotRecs
@@ -61,8 +66,17 @@ with open('udetails.oab', 'rb') as f:
 		# wow such bit op
 		presenceBitArray = bytearray(chunk.read(int(math.ceil(OAB_cAtts / 8.0))))
 		indices = [i for i in range(OAB_cAtts) if (presenceBitArray[i / 8] >> (7 - (i % 8))) & 1 == 1]
-		print "\n----------------------------------------"
+		#print "\n----------------------------------------"
 		# print "Chunk Size: ", cbSize
+
+		EmailAddress = ""
+		FirstName = ""
+		LastName = ""
+		AccountName = ""
+		DisplayName = ""
+		DepartmentName = ""
+		CompanyName = ""
+		BusinessTelephoneNumber = ""
 
 		def read_str():
 			# strings in the OAB format are null-terminated
@@ -96,32 +110,49 @@ with open('udetails.oab', 'rb') as f:
 			if Type == "PtypString8" or Type == "PtypString":
 				val = read_str()
 				rec[Name] = val
-				print Name, val
+				#print Name, val
+				if Name == "SmtpAddress":
+				    EmailAddress = val
+				elif Name == "GivenName":
+				    FirstName = val
+				elif Name == "Surname":
+				    LastName = val
+				elif Name == "Account":
+				    AccountName = val
+				elif Name == "DisplayName":
+				    DisplayName = val
+				elif Name == "DepartmentName":
+				    DepartmentName = val
+				elif Name == "CompanyName":
+				    CompanyName = val
+				elif Name == "BusinessTelephoneNumber":
+				    BusinessTelephoneNumber = val
+
 			elif Type == "PtypBoolean":
 				val = unpack('<?', chunk.read(1))[0]
 				rec[Name] = val
-				print Name, val
+				#print Name, val
 			elif Type == "PtypInteger32":
 				val = read_int()
 				rec[Name] = val
-				print Name, val
+				#print Name, val
 			elif Type == "PtypBinary":
 				bin = chunk.read(read_int())
 				rec[Name] = binascii.b2a_hex(bin)
-				print Name, len(bin), binascii.b2a_hex(bin)
+				#print Name, len(bin), binascii.b2a_hex(bin)
 			elif Type == "PtypMultipleString" or Type == "PtypMultipleString8":
 				byte_count = read_int()
-				print Name, byte_count
+				#print Name, byte_count
 				arr = []
 				for i in range(byte_count):
 					val = read_str()
 					arr.append(val)
-					print i, "\t", val
+				#	print i, "\t", val
 				rec[Name] = arr
-	
+
 			elif Type == "PtypMultipleInteger32":
 				byte_count = read_int()
-				print Name, byte_count
+				#print Name, byte_count
 				arr = []
 				for i in range(byte_count):
 					val = read_int()
@@ -130,26 +161,25 @@ with open('udetails.oab', 'rb') as f:
 						if val in PidTagSchema:
 							val = PidTagSchema[val][0]
 					arr.append(val)
-					print i, "\t", val
+				#	print i, "\t", val
 
 				rec[Name] = arr
 
 			elif Type == "PtypMultipleBinary":
 				byte_count = read_int()
-				print Name, byte_count
+				#print Name, byte_count
 				arr = []
 				for i in range(byte_count):
 					bin_len = read_int()
 					bin = chunk.read(bin_len)
 					arr.append(binascii.b2a_hex(bin))
-					print i, "\t", bin_len, binascii.b2a_hex(bin)
+				#	print i, "\t", bin_len, binascii.b2a_hex(bin)
 				rec[Name] = arr
 			else:
 				raise "Unknown property type (" + Type + ")"
-				
+
+		print "%s, %s, %s, %s, %s, %s, %s" % (AccountName, DisplayName, FirstName, LastName, DepartmentName, CompanyName, BusinessTelephoneNumber)
+
 		remains = chunk.read()
 		if len(remains) > 0:
 			raise "This record contains unexpected data at the end: " + remains
-		
-		json_out.write(json.dumps(rec) + '\n')
-		
