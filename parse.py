@@ -178,7 +178,7 @@ with open(udetails, 'rb') as f:
 			else:
 				raise "Unknown property type (" + Type + ")"
 
-		print "%s, %s, %s, %s, %s, %s, %s" % (AccountName, DisplayName, FirstName, LastName, DepartmentName, CompanyName, BusinessTelephoneNumber)
+		print "%s, %s, %s, %s, %s, %s, %s, %s" % (AccountName, DisplayName, EmailAddress, FirstName, LastName, DepartmentName, CompanyName, BusinessTelephoneNumber)
 
 		remains = chunk.read()
 		if len(remains) > 0:
